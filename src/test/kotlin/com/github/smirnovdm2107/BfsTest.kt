@@ -178,12 +178,14 @@ class BfsTest {
     @MethodSource("bfsMethods")
     fun `cube graph`(algo: Algo) {
         val edgeSize = 50
-        val result = algo.bfs(0, CubeGraph(edgeSize))
-        Assertions.assertEquals(result.size, edgeSize * edgeSize * edgeSize)
-        for (i1 in 0 until edgeSize) {
-            for (i2 in 0 until edgeSize) {
-                for (i3 in 0 until edgeSize) {
-                    val index = i1 + i2 * edgeSize + i3 * edgeSize * edgeSize
+        val graph = CubeGraph(edgeSize)
+        val result = algo.bfs(0, graph)
+        Assertions.assertEquals(result.size, graph.size)
+        val edgeNodes = edgeSize + 1
+        for (i1 in 0 until edgeNodes) {
+            for (i2 in 0 until edgeNodes) {
+                for (i3 in 0 until edgeNodes) {
+                    val index = i1 + i2 * edgeNodes + i3 * edgeNodes * edgeNodes
                     Assertions.assertEquals(
                         i1 + i2 + i3,
                         result[index]
@@ -199,7 +201,9 @@ class BfsTest {
         fun bfsMethods() = Stream.of(
             Algo.SequentialBfs,
             Algo.ParallelBfs(4, 2),
-            Algo.ParallelBfs(4, 1)
+            Algo.ParallelBfs(4, 1),
+            Algo.ParallelBfs2(4, 2),
+            Algo.ParallelBfs2(4, 1),
         )
     }
 
@@ -209,7 +213,9 @@ class BfsTest {
 
         data object SequentialBfs : Algo() {
             override fun bfs(start: Int, graph: Graph): IntArray {
-                return sequentialBfs(start, graph)
+                val result = IntArray(graph.size)
+                sequentialBfs(start, graph, result)
+                return result
             }
         }
 
@@ -218,9 +224,30 @@ class BfsTest {
             val blockSize: Int
         ) : Algo() {
             override fun bfs(start: Int, graph: Graph): IntArray {
+                ForkJoinPool(parallelism).use {
+                    val result = IntArray(graph.size)
+                    it.parallelBfs(start, graph, result)
+                    return result
+                }
+            }
+        }
+
+        data class ParallelBfs2(
+            val parallelism: Int,
+            val blockSize: Int
+        ) : Algo() {
+            override fun bfs(start: Int, graph: Graph): IntArray {
                 val pool = ForkJoinPool(parallelism)
-                val result = pool.parallelBfs(start, graph, blockSize)
-                pool.close()
+                val result = IntArray(graph.size)
+                val frontier = IntArray(graph.size)
+                val nextFrontier = IntArray(graph.edgeSize)
+                val sandbox = IntArray(graph.edgeSize)
+                val degs = IntArray(graph.size)
+                try {
+                    pool.parallelBfs2(start, graph, result, frontier, nextFrontier, sandbox, degs)
+                } finally {
+                    pool.close()
+                }
                 return result
             }
         }

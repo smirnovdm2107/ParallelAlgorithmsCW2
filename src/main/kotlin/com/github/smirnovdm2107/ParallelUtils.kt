@@ -1,8 +1,6 @@
 package com.github.smirnovdm2107
 
-import java.util.Collections
 import java.util.concurrent.ForkJoinPool
-import java.util.concurrent.ThreadLocalRandom
 import kotlin.math.sqrt
 
 fun ForkJoinPool.parallelFor(n: Int, blockSize: Int = sqrt(n.toDouble()).toInt(), block: (Int) -> Unit) {
@@ -93,25 +91,32 @@ private fun ForkJoinPool.parallelMap(
 
 fun ForkJoinPool.parallelScan(
     arr: IntArray,
-    blockSize: Int = sqrt(arr.size.toDouble()).toInt(),
-    reduce: (Int, Int) -> Int
+    l: Int,
+    r: Int,
+    blockSize: Int = sqrt((r - l).toDouble()).toInt(),
 ): Int {
     if (arr.isEmpty()) {
         return 0
     }
-    upScan(arr, 0, arr.size, blockSize, reduce)
-    val result = arr[arr.size - 1]
-    arr[arr.size - 1] = 0
-    downScan(arr, 0, arr.size, blockSize, reduce)
+    upScan(arr, l, r, blockSize)
+    val result = arr[r - 1]
+    arr[r - 1] = 0
+    downScan(arr, l, r, blockSize)
     return result
+}
+
+fun ForkJoinPool.parallelScan(
+    arr: IntArray,
+    blockSize: Int = sqrt(arr.size.toDouble()).toInt(),
+): Int {
+    return parallelScan(arr,0, arr.size, blockSize)
 }
 
 fun ForkJoinPool.upScan(
     arr: IntArray,
     l: Int,
     r: Int,
-    blockSize: Int = sqrt(arr.size.toDouble()).toInt(),
-    reduce: (Int, Int) -> Int
+    blockSize: Int = sqrt(arr.size.toDouble()).toInt()
 ): Int {
     if (r - l == 1) {
         return arr[l]
@@ -120,19 +125,19 @@ fun ForkJoinPool.upScan(
     val left: Int
     val right: Int
     if (r - l < blockSize) {
-        left = upScan(arr, l, m, blockSize, reduce)
-        right = upScan(arr, m, r, blockSize, reduce)
+        left = upScan(arr, l, m, blockSize)
+        right = upScan(arr, m, r, blockSize)
     } else {
         val leftF = submit<Int> {
-            upScan(arr, l, m, blockSize, reduce)
+            upScan(arr, l, m, blockSize)
         }
         val rightF = submit<Int> {
-            upScan(arr, m, r, blockSize, reduce)
+            upScan(arr, m, r, blockSize)
         }
         left = leftF.join()
         right = rightF.join()
     }
-    arr[r - 1] = reduce(left, right)
+    arr[r - 1] = left + right
     return arr[r - 1]
 }
 
@@ -141,7 +146,6 @@ fun ForkJoinPool.downScan(
     l: Int,
     r: Int,
     blockSize: Int = sqrt(arr.size.toDouble()).toInt(),
-    reduce: (Int, Int) -> Int
 ) {
     if (r - l == 1) {
         return
@@ -149,16 +153,16 @@ fun ForkJoinPool.downScan(
     val m = (l + r) / 2
     val tmp = arr[m - 1]
     arr[m - 1] = arr[r - 1]
-    arr[r - 1] = reduce(arr[r - 1], tmp)
+    arr[r - 1] = arr[r - 1] + tmp
     if (r - l < blockSize) {
-        downScan(arr, l, m, blockSize, reduce)
-        downScan(arr, m, r, blockSize, reduce)
+        downScan(arr, l, m, blockSize)
+        downScan(arr, m, r, blockSize)
     } else {
         val leftF = submit {
-            downScan(arr, l, m, blockSize, reduce)
+            downScan(arr, l, m, blockSize)
         }
         val rightF = submit {
-            downScan(arr, m, r, blockSize, reduce)
+            downScan(arr, m, r, blockSize)
         }
         leftF.join()
         rightF.join()
@@ -174,7 +178,7 @@ fun ForkJoinPool.parallelFilter(
         return arr
     }
     val prefix: IntArray = parallelMap(arr, blockSize) { if (block(it)) 1 else 0 }
-    parallelScan(prefix, blockSize) { a, b -> a + b }
+    parallelScan(prefix, blockSize)
     val testLast = block(arr[arr.size - 1])
     val filteredSize = prefix[prefix.size - 1] + if (testLast) 1 else 0
     val result = IntArray(filteredSize)

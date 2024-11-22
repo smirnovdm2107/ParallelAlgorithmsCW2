@@ -9,13 +9,9 @@ import java.util.concurrent.TimeUnit
 @BenchmarkMode(Mode.AverageTime)
 @Fork(1)
 @Warmup(iterations = 1)
-@Measurement(iterations = 5)
+@Measurement(iterations = 1)
 open class CubeGraphBenchmark {
-    protected lateinit var arr: Graph
-    private val edgeSize = 500
-
-    @Setup(Level.Invocation)
-    fun init() {
-        arr = CubeGraph(edgeSize)
-    }
+    protected var arr: Graph? = null
+    protected lateinit var result: IntArray
+    protected val edgeSize = 500
 }
