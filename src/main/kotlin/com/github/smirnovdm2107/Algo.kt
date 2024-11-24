@@ -2,6 +2,7 @@ package com.github.smirnovdm2107
 
 import java.util.concurrent.ForkJoinPool
 import java.util.concurrent.atomic.AtomicIntegerArray
+import kotlin.math.max
 
 data class Node(
     val neighs: IntArray
@@ -139,26 +140,20 @@ fun sequentialBfs(start: Int, graph: Graph, result: IntArray) {
     }
 }
 
-fun ForkJoinPool.parallelBfs(
-    start: Int,
-    graph: Graph,
-    result: IntArray
-): IntArray {
-    return parallelBfs(start, graph, AtomicIntegerArray(graph.size), result)
-}
 
 fun ForkJoinPool.parallelBfs(
     start: Int,
     graph: Graph,
-    a: AtomicIntegerArray,
     result: IntArray
 ): IntArray {
     parallelFor(result.size) {
         result[it] = -1
     }
+    val a = AtomicIntegerArray(graph.size)
     a.set(start, 1)
     result[start] = 0
     var frontier = intArrayOf(start + 1)
+    var maxNextFrontier = 0
     while (frontier.isNotEmpty()) {
         val degs = IntArray(frontier.size)
         parallelFor(frontier.size) {
@@ -176,6 +171,7 @@ fun ForkJoinPool.parallelBfs(
                 }
             }
         }
+        // parallel filter make it slower
         val count = nextFront.count { it != 0 }
         frontier = IntArray(count)
         var cur = 0
@@ -193,14 +189,14 @@ fun ForkJoinPool.parallelBfs2(
     graph: Graph, // size n
     result: IntArray, // size n
     frontier: IntArray, // size n
-    nextFrontier: IntArray, // size m
-    sandbox: IntArray, // size m
-    degs: IntArray
+    nextFrontier: IntArray, // size >= max sum of edges in frontier
+    sandbox: IntArray, // size >= max sum of edges in frontier
+    degs: IntArray, // sine n
+    a: AtomicIntegerArray = AtomicIntegerArray(graph.size) // size n
 ): IntArray {
     parallelFor(result.size) {
         result[it] = -1
     }
-    val a = AtomicIntegerArray(graph.size)
     a.set(start, 1)
     result[start] = 0
     var frontierSize = 1
@@ -221,21 +217,15 @@ fun ForkJoinPool.parallelBfs2(
             }
         }
 
-        val nextSize = parallelFilter2(
-            nextFrontier,
-            0,
-            max,
-            sandbox,
-            0,
-            frontier,
-            0
-        ) {
-            it != 0
+        // Inplace parallel filter make program slower
+        var count = 0
+        for (it in 0 until max) {
+            if (nextFrontier[it] != 0) {
+                frontier[count++] = nextFrontier[it]
+                nextFrontier[it] = 0
+            }
         }
-        frontierSize = nextSize
-        parallelFor(max) {
-            nextFrontier[it] = 0
-        }
+        frontierSize = count
     }
     return result
 }

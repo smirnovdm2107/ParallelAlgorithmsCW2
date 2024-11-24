@@ -5,14 +5,15 @@ import org.openjdk.jmh.annotations.Level
 import org.openjdk.jmh.annotations.Setup
 import org.openjdk.jmh.annotations.TearDown
 import java.util.concurrent.ForkJoinPool
+import java.util.concurrent.atomic.AtomicIntegerArray
 
 open class ParallelBfs2Benchmark : CubeGraphBenchmark() {
-    private val parallelism = 4
     private val pool = ForkJoinPool(parallelism)
     protected lateinit var frontier: IntArray
     protected lateinit var nextFrontier: IntArray
     protected lateinit var sandbox: IntArray
     protected lateinit var degs: IntArray
+    protected lateinit var a: AtomicIntegerArray
 
     @Setup(Level.Iteration)
     fun init() {
@@ -23,9 +24,10 @@ open class ParallelBfs2Benchmark : CubeGraphBenchmark() {
         arr = CubeGraph(edgeSize)
         result = IntArray(arr!!.size)
         frontier = IntArray(arr!!.size)
-        nextFrontier = IntArray(arr!!.edgeSize)
-        sandbox = IntArray(arr!!.edgeSize)
+        nextFrontier = IntArray(1128000)
+        sandbox = IntArray(1128000)
         degs = IntArray(arr!!.size)
+        a = AtomicIntegerArray(arr!!.size)
 
         Runtime.getRuntime().gc()
         Thread.sleep(1000)
@@ -33,7 +35,7 @@ open class ParallelBfs2Benchmark : CubeGraphBenchmark() {
 
     @Benchmark
     fun parallelBfs2Benchmark() {
-        pool.parallelBfs2(0, arr!!, result, frontier, nextFrontier, sandbox, degs)
+        ForkJoinPool.commonPool().parallelBfs2(0, arr!!, result, frontier, nextFrontier, sandbox, degs, a)
     }
 
     @TearDown

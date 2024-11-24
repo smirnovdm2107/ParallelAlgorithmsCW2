@@ -20,7 +20,7 @@ dependencies {
     testImplementation("org.junit.jupiter:junit-jupiter-engine:5.10.0")
 }
 jmh {
-    jmh.jvmArgs = listOf("-Xms4g", "-Xmx4g")
+    jmh.jvmArgs = listOf("-Xms8g", "-Xmx8g")
 }
 
 tasks.test {

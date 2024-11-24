@@ -1,6 +1,7 @@
 package com.github.smirnovdm2107
 
 import org.openjdk.jmh.annotations.*
+import java.util.concurrent.ForkJoinPool
 import java.util.concurrent.TimeUnit
 
 
@@ -9,9 +10,14 @@ import java.util.concurrent.TimeUnit
 @BenchmarkMode(Mode.AverageTime)
 @Fork(1)
 @Warmup(iterations = 1)
-@Measurement(iterations = 1)
+@Measurement(iterations = 5)
 open class CubeGraphBenchmark {
+    protected val parallelism = 4
     protected var arr: Graph? = null
     protected lateinit var result: IntArray
     protected val edgeSize = 500
+
+    init {
+        ForkJoinPool.commonPool().setParallelism(parallelism)
+    }
 }
