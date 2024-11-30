@@ -10,4 +10,6 @@ Comparasion of 3 bfs algorithms (cube graph with edge length - 500):
 | ParallelBfs   | avgt |    5 |     18561.939 ± |  1355.934 |  ms/op |
 | SequentialBfs |  avgt |    5 |    40108.512 ± |    3081.815 |  ms/op |
 
+Performance scale ~ 2.29 
+
 To start benchmark test use `./gradlew jmh` (java 21, 8g RAM)
